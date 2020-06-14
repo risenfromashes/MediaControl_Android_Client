@@ -1,0 +1,74 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/layout"
+    android:layout_width="fill_parent"
+    android:layout_height="64dp"
+    android:padding="10dp">
+
+    <ImageButton
+        android:id="@+id/nextButton"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:src="@drawable/ic_next"
+        android:backgroundTint="@android:color/transparent"
+        android:layout_alignParentEnd="true" />
+
+    <ImageButton
+        android:id="@+id/prevButton"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:src="@drawable/ic_prev"
+        android:backgroundTint="@android:color/transparent"
+        android:layout_toLeftOf="@id/invisibleButton" />
+
+    <ImageButton
+        android:id="@+id/pauseButton"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:layout_toLeftOf="@id/nextButton"
+        android:backgroundTint="@android:color/transparent"
+        android:src="@drawable/ic_pause" />
+
+    <ImageButton
+        android:id="@+id/playButton"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:layout_toLeftOf="@id/nextButton"
+        android:backgroundTint="@android:color/transparent"
+        android:src="@drawable/ic_play" />
+
+    <ImageButton
+        android:id="@+id/invisibleButton"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:layout_toLeftOf="@id/nextButton"
+        android:backgroundTint="@android:color/transparent"
+        android:visibility="invisible"
+        android:src="@drawable/ic_play" />
+
+    <TextView
+        android:id="@+id/titleLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="12dp"
+        android:text="TextView"
+        android:layout_toRightOf="@id/albumArtView"
+        style="@style/TextAppearance.Compat.Notification.Title" />
+
+    <TextView
+        android:id="@+id/artistLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="8dp"
+        android:text="TextView"
+        android:layout_below="@id/titleLabel"
+        android:layout_toRightOf="@id/albumArtView"
+        style="@style/TextAppearance.Compat.Notification.Title" />
+
+    <ImageView
+        android:id="@+id/albumArtView"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:src="@drawable/ic_album_art" />
+
+</RelativeLayout>

@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">MediaControl</string>
+    <string name="media_remote_play">MEDIA_REMOTE_PLAY</string>
+    <string name="media_remote_pause">MEDIA_REMOTE_PAUSE</string>
+    <string name="media_remote_next">MEDIA_REMOTE_NEXT</string>
+    <string name="media_remote_prev">MEDIA_REMOTE_PREV</string>
+    <string name="media_remote_update_status">MEDIA_REMOTE_UPDATE_STATUS</string>
+</resources>
