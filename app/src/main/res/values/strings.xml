@@ -1,8 +1,14 @@
 <resources>
     <string name="app_name">MediaControl</string>
-    <string name="media_remote_play">MEDIA_REMOTE_PLAY</string>
-    <string name="media_remote_pause">MEDIA_REMOTE_PAUSE</string>
-    <string name="media_remote_next">MEDIA_REMOTE_NEXT</string>
-    <string name="media_remote_prev">MEDIA_REMOTE_PREV</string>
-    <string name="media_remote_update_status">MEDIA_REMOTE_UPDATE_STATUS</string>
+    <string name="media_remote_toggle">com.example.mediacontrol.MEDIA_REMOTE_TOGGLE</string>
+    <string name="media_remote_next">com.example.mediacontrol.MEDIA_REMOTE_NEXT</string>
+    <string name="media_remote_prev">com.example.mediacontrol.MEDIA_REMOTE_PREV</string>
+    <string name="media_remote_volume_up">com.example.mediacontrol.MEDIA_REMOTE_VOLUME_UP</string>
+    <string name="media_remote_volume_down">com.example.mediacontrol.MEDIA_REMOTE_VOLUME_DOWN</string>
+    <string name="title_activity_main">MainActivity</string>
+    <!--
+    This string is used for square devices and overridden by hello_world in
+    values-round/strings.xml for round devices.
+    -->
+    <string name="hello_world">Hello Square World!</string>
 </resources>

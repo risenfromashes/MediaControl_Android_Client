@@ -4,10 +4,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
+import android.content.*
 import android.graphics.Bitmap
 import android.os.Binder
 import android.os.Build
@@ -34,6 +31,7 @@ import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.engine.GlideException
 import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.Target
+import org.json.JSONObject
 
 
 class MediaRemoteService : Service() {
@@ -49,18 +47,11 @@ class MediaRemoteService : Service() {
             get() = this@MediaRemoteService
     }
 
-    private val mediaPlayPendingIntent
+    private val mediaTogglePendingIntent
         get() = PendingIntent.getBroadcast(
             this,
             0,
-            Intent(getMediaRemoteAction(MediaRemoteCommand.PLAY)),
-            0
-        )
-    private val mediaPausePendingIntent
-        get() = PendingIntent.getBroadcast(
-            this,
-            0,
-            Intent(getMediaRemoteAction(MediaRemoteCommand.PAUSE)),
+            Intent(getMediaRemoteAction(MediaRemoteCommand.TOGGLE)),
             0
         )
     private val mediaPrevPendingIntent
@@ -77,23 +68,39 @@ class MediaRemoteService : Service() {
             Intent(getMediaRemoteAction(MediaRemoteCommand.NEXT)),
             0
         )
+    private val mediaVolumeUpPendingIntent
+        get() = PendingIntent.getBroadcast(
+            this,
+            0,
+            Intent(getMediaRemoteAction(MediaRemoteCommand.VOLUMEUP)),
+            0
+        )
+    private val mediaVolumeDownPendingIntent
+        get() = PendingIntent.getBroadcast(
+            this,
+            0,
+            Intent(getMediaRemoteAction(MediaRemoteCommand.VOLUMEDOWN)),
+            0
+        )
 
     private enum class MediaRemoteCommand {
-        PLAY, PAUSE, PREV, NEXT
+        TOGGLE, PREV, NEXT, VOLUMEUP, VOLUMEDOWN
     }
 
     private fun getMediaRemoteAction(command: MediaRemoteCommand): String = when (command) {
-        MediaRemoteCommand.PLAY -> getString(R.string.media_remote_play)
-        MediaRemoteCommand.PAUSE -> getString(R.string.media_remote_pause)
+        MediaRemoteCommand.TOGGLE -> getString(R.string.media_remote_toggle)
         MediaRemoteCommand.PREV -> getString(R.string.media_remote_prev)
         MediaRemoteCommand.NEXT -> getString(R.string.media_remote_next)
+        MediaRemoteCommand.VOLUMEUP -> getString(R.string.media_remote_volume_up)
+        MediaRemoteCommand.VOLUMEDOWN -> getString(R.string.media_remote_volume_down)
     }
 
     private fun getMediaRemoteCommand(action: String?): MediaRemoteCommand = when (action) {
-        getString(R.string.media_remote_play) -> MediaRemoteCommand.PLAY
-        getString(R.string.media_remote_pause) -> MediaRemoteCommand.PAUSE
+        getString(R.string.media_remote_toggle) -> MediaRemoteCommand.TOGGLE
         getString(R.string.media_remote_prev) -> MediaRemoteCommand.PREV
         getString(R.string.media_remote_next) -> MediaRemoteCommand.NEXT
+        getString(R.string.media_remote_volume_up) -> MediaRemoteCommand.VOLUMEUP
+        getString(R.string.media_remote_volume_down) -> MediaRemoteCommand.VOLUMEDOWN
         else -> throw Exception("Unknown Action")
     }
 
@@ -101,11 +108,11 @@ class MediaRemoteService : Service() {
         mNM = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         showNotification()
         val intentFilter = IntentFilter()
-        intentFilter.addAction(getString(R.string.media_remote_play))
-        intentFilter.addAction(getString(R.string.media_remote_pause))
+        intentFilter.addAction(getString(R.string.media_remote_toggle))
         intentFilter.addAction(getString(R.string.media_remote_next))
         intentFilter.addAction(getString(R.string.media_remote_prev))
-        intentFilter.addAction(getString(R.string.media_remote_update_status))
+        intentFilter.addAction(getString(R.string.media_remote_volume_up))
+        intentFilter.addAction(getString(R.string.media_remote_volume_down))
         registerReceiver(playbackControlReceiver, intentFilter)
         Thread(Runnable {
             while (shouldRun) {
@@ -117,7 +124,7 @@ class MediaRemoteService : Service() {
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
         Log.i("MediaRemoteService", "Received start id $startId: $intent")
-        return START_NOT_STICKY
+        return START_STICKY
     }
 
     override fun onDestroy() {
@@ -152,40 +159,58 @@ class MediaRemoteService : Service() {
 
     private val playbackControlReceiver: BroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            Log.println(Log.ERROR, "Intent", intent.action)
-            if (intent.action == getString(R.string.media_remote_update_status))
-                updateNotification()
-            else handleMediaRemoteCommand(getMediaRemoteCommand(intent.action))
+            try {
+                handleMediaRemoteCommand(getMediaRemoteCommand(intent.action))
+            } catch (e: java.lang.Exception) {
+                Log.println(Log.ERROR, "Broadcast receive error", e.message)
+            }
         }
     }
     private lateinit var currentTrack: MediaRemoteTrack;
     private var failureCount: Int = 0;
-    private fun updateNotification() {
-        val jsonObjectRequest = JsonObjectRequest(Request.Method.GET, host + "status", null,
-            Response.Listener { response ->
-                failureCount = 0;
-                val track = MediaRemoteTrack(
-                    response.getString("title"),
-                    response.getString("artist"),
-                    response.getString("album")
-                )
-                notificationLayout.setTextViewText(R.id.titleLabel, track.title)
-                notificationLayout.setTextViewText(R.id.artistLabel, track.artist)
-                togglePlayPause(response.getBoolean("playing"))
-                if (!this::currentTrack.isInitialized || (currentTrack != track))
-                    updateThumbnail()
-                currentTrack = track
-            },
-            Response.ErrorListener { _ ->
-                if (++failureCount > 5)
-                    mNM!!.cancel(NOTIFICATION_ID)
-                Log.println(Log.ERROR, "Response", "Error Updating status")
-            }
+    private var isPlaying: Boolean = false
+    private fun updateStatus(response: JSONObject) {
+        failureCount = 0;
+        val track = MediaRemoteTrack(
+            response.getString("title"),
+            response.getString("artist"),
+            response.getString("album")
         )
-        NetworkSingleton.getInstance(this.applicationContext).apply {
-            this.addToRequestQueue(jsonObjectRequest)
-            this.requestQueue.start()
+        val _isPlaying = response.getBoolean("playing");
+        if (isPlaying != _isPlaying) {
+            isPlaying = _isPlaying
+            togglePlayPause(isPlaying)
         }
+        if (!this::currentTrack.isInitialized || (currentTrack != track)) {
+            notificationLayoutSmall.apply {
+                setTextViewText(R.id.titleLabel, track.title)
+                setTextViewText(R.id.artistLabel, track.artist)
+            }
+            notificationLayoutLarge.apply {
+                setTextViewText(R.id.titleLabel, track.title)
+                setTextViewText(R.id.artistLabel, track.artist)
+            }
+            isPlaying = _isPlaying
+            currentTrack = track
+            updateThumbnail()
+        }
+    }
+
+    private fun updateNotification(response: JSONObject? = null) {
+        if (response == null) {
+            val jsonObjectRequest = JsonObjectRequest(Request.Method.GET, host + "status", null,
+                Response.Listener { response -> updateStatus(response) },
+                Response.ErrorListener { _ ->
+                    if (++failureCount > 5)
+                        mNM!!.cancel(NOTIFICATION_ID)
+                    Log.println(Log.ERROR, "Response", "Error Updating status")
+                }
+            )
+            NetworkSingleton.getInstance(this.applicationContext).apply {
+                this.addToRequestQueue(jsonObjectRequest)
+                this.requestQueue.start()
+            }
+        } else updateStatus(response)
     }
 
     private fun updateThumbnail() {
@@ -201,7 +226,11 @@ class MediaRemoteService : Service() {
                         target: Target<Bitmap>?,
                         isFirstResource: Boolean
                     ): Boolean {
-                        notificationLayout.setImageViewResource(
+                        notificationLayoutSmall.setImageViewResource(
+                            R.id.albumArtView,
+                            R.drawable.ic_album_art
+                        )
+                        notificationLayoutLarge.setImageViewResource(
                             R.id.albumArtView,
                             R.drawable.ic_album_art
                         )
@@ -217,7 +246,8 @@ class MediaRemoteService : Service() {
                     ): Boolean {
                         if (resource != null) {
                             Log.println(Log.ERROR, "resource loaded", "Loaded")
-                            notificationLayout.setImageViewBitmap(R.id.albumArtView, resource)
+                            notificationLayoutSmall.setImageViewBitmap(R.id.albumArtView, resource)
+                            notificationLayoutLarge.setImageViewBitmap(R.id.albumArtView, resource)
                             mNM!!.notify(NOTIFICATION_ID, notification.build())
                         }
                         return true;
@@ -228,28 +258,30 @@ class MediaRemoteService : Service() {
         }
     }
 
-    private lateinit var notificationLayout: RemoteViews
+    private lateinit var notificationLayoutSmall: RemoteViews
+    private lateinit var notificationLayoutLarge: RemoteViews
     private lateinit var notification: NotificationCompat.Builder
     private fun togglePlayPause(play: Boolean = true) {
         if (play) {
-            notificationLayout.setViewVisibility(R.id.pauseButton, View.VISIBLE)
-            notificationLayout.setViewVisibility(R.id.playButton, View.GONE)
+            notificationLayoutSmall.setImageViewResource(R.id.playPauseButton, R.drawable.ic_pause)
+            notificationLayoutLarge.setImageViewResource(R.id.playPauseButton, R.drawable.ic_pause)
         } else {
-            notificationLayout.setViewVisibility(R.id.pauseButton, View.GONE)
-            notificationLayout.setViewVisibility(R.id.playButton, View.VISIBLE)
+            notificationLayoutSmall.setImageViewResource(R.id.playPauseButton, R.drawable.ic_play)
+            notificationLayoutLarge.setImageViewResource(R.id.playPauseButton, R.drawable.ic_play)
         }
         mNM!!.notify(NOTIFICATION_ID, notification.build())
     }
 
     private fun handleMediaRemoteCommand(command: MediaRemoteCommand): Unit {
         val req: String = when (command) {
-            MediaRemoteCommand.PLAY -> "play"
-            MediaRemoteCommand.PAUSE -> "pause"
+            MediaRemoteCommand.TOGGLE -> if (isPlaying) "pause" else "play"
             MediaRemoteCommand.PREV -> "prev"
             MediaRemoteCommand.NEXT -> "next"
+            MediaRemoteCommand.VOLUMEUP -> "volume_up"
+            MediaRemoteCommand.VOLUMEDOWN -> "volume_down"
         }
-        val request = StringRequest(Request.Method.POST, host + req,
-            Response.Listener<String> { updateNotification() },
+        val request = JsonObjectRequest(Request.Method.POST, host + req, null,
+            Response.Listener { res -> updateNotification(res) },
             Response.ErrorListener { Log.println(Log.ERROR, "post req", "error") });
         NetworkSingleton.getInstance(this).apply {
             this.addToRequestQueue(request)
@@ -259,21 +291,30 @@ class MediaRemoteService : Service() {
 
     private fun showNotification() {
         //Log.println(Log.ERROR, "init","Service started")
-        val contentIntent = PendingIntent.getActivity(
-            this, 0,
-            Intent(this, MainActivity::class.java), 0
-        )
-        notificationLayout =
+        notificationLayoutSmall =
             RemoteViews(packageName, com.example.mediacontrol.R.layout.notification_small)
+        notificationLayoutLarge =
+            RemoteViews(packageName, com.example.mediacontrol.R.layout.notification_large)
         notification = NotificationCompat.Builder(this, CHANNEL_ID)
-        notificationLayout.setViewVisibility(R.id.pauseButton, View.GONE)
-        notificationLayout.setOnClickPendingIntent(R.id.pauseButton, mediaPausePendingIntent)
-        notificationLayout.setOnClickPendingIntent(R.id.playButton, mediaPlayPendingIntent)
-        notificationLayout.setOnClickPendingIntent(R.id.nextButton, mediaNextPendingIntent)
-        notificationLayout.setOnClickPendingIntent(R.id.prevButton, mediaPrevPendingIntent)
+        notificationLayoutSmall.apply {
+            setOnClickPendingIntent(R.id.playPauseButton, mediaTogglePendingIntent)
+            setOnClickPendingIntent(R.id.nextButton, mediaNextPendingIntent)
+            setOnClickPendingIntent(R.id.prevButton, mediaPrevPendingIntent)
+            setOnClickPendingIntent(R.id.volumeUpButton, mediaVolumeUpPendingIntent)
+            setOnClickPendingIntent(R.id.volumeDownButton, mediaVolumeDownPendingIntent)
+        }
+        notificationLayoutLarge.apply {
+            setOnClickPendingIntent(R.id.playPauseButton, mediaTogglePendingIntent)
+            setOnClickPendingIntent(R.id.nextButton, mediaNextPendingIntent)
+            setOnClickPendingIntent(R.id.prevButton, mediaPrevPendingIntent)
+            setOnClickPendingIntent(R.id.volumeUpButton, mediaVolumeUpPendingIntent)
+            setOnClickPendingIntent(R.id.volumeDownButton, mediaVolumeDownPendingIntent)
+        }
+
         notification.setSmallIcon(com.example.mediacontrol.R.drawable.ic_music)
             .setStyle(NotificationCompat.DecoratedCustomViewStyle())
-            .setCustomContentView(notificationLayout)
+            .setCustomContentView(notificationLayoutSmall)
+            .setCustomBigContentView(notificationLayoutLarge)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setAutoCancel(false)
             .setOnlyAlertOnce(true)
