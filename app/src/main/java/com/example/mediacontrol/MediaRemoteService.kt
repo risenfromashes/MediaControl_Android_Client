@@ -170,7 +170,7 @@ class MediaRemoteService : Service() {
     private var failureCount: Int = 0;
     private var isPlaying: Boolean = false
     private fun updateStatus(response: JSONObject) {
-        failureCount = 0;
+
         val track = MediaRemoteTrack(
             response.getString("title"),
             response.getString("artist"),
@@ -193,7 +193,8 @@ class MediaRemoteService : Service() {
             isPlaying = _isPlaying
             currentTrack = track
             updateThumbnail()
-        }
+        } else if (failureCount > 5) mNM!!.notify(NOTIFICATION_ID, notification.build())
+        failureCount = 0;
     }
 
     private fun updateNotification(response: JSONObject? = null) {
