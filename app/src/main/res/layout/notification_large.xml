@@ -1,0 +1,99 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/layout"
+    android:layout_width="fill_parent"
+    android:layout_height="130dp"
+    android:padding="5dp">
+
+    <LinearLayout
+        android:id="@+id/labels"
+        android:layout_width="match_parent"
+        android:layout_height="30dp"
+        android:layout_alignParentTop="true"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/titleLabel"
+            style="@style/TextAppearance.Compat.Notification.Title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:maxLines="3"
+            android:layout_marginLeft="5dp"
+            android:layout_toRightOf="@id/albumArtView"
+            android:text="Some random song"
+            android:textSize="12dp" />
+
+        <TextView
+            android:id="@+id/artistLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:maxLines="2"
+            android:singleLine="false"
+            android:layout_marginLeft="5dp"
+            android:textSize="8dp"
+            android:text="Some random artist"
+            android:layout_below="@id/titleLabel"
+            android:layout_toRightOf="@id/albumArtView"
+            style="@style/TextAppearance.Compat.Notification.Title" />
+    </LinearLayout>
+
+    <RelativeLayout
+        android:id="@+id/buttons"
+        android:layout_alignParentBottom="true"
+        android:layout_width="fill_parent"
+        android:layout_height="80dp">
+
+        <ImageButton
+            android:id="@+id/nextButton"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:src="@drawable/ic_next"
+            android:backgroundTint="@color/gray"
+            android:layout_toLeftOf="@id/volumeUpButton" />
+
+        <ImageButton
+            android:id="@+id/prevButton"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:src="@drawable/ic_prev"
+            android:backgroundTint="@color/gray"
+            android:layout_toLeftOf="@id/playPauseButton" />
+
+        <ImageButton
+            android:id="@+id/playPauseButton"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:layout_toLeftOf="@id/nextButton"
+            android:backgroundTint="@color/gray"
+            android:src="@drawable/ic_pause" />
+
+
+        <ImageView
+            android:id="@+id/albumArtView"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:src="@drawable/ic_album_art" />
+
+        <ImageButton
+            android:id="@+id/volumeUpButton"
+            android:layout_width="40dp"
+            android:layout_height="45dp"
+            android:layout_alignParentEnd="true"
+            android:padding="0dp"
+            android:backgroundTint="@color/gray"
+            android:layout_alignParentTop="true"
+            android:src="@drawable/ic_up_arrow" />
+
+        <ImageButton
+            android:id="@+id/volumeDownButton"
+            android:layout_width="40dp"
+            android:layout_height="45dp"
+            android:layout_alignParentEnd="true"
+            android:padding="0dp"
+            android:backgroundTint="@color/gray"
+            android:layout_alignParentBottom="true"
+            android:src="@drawable/ic_down_arrow" />
+    </RelativeLayout>
+
+
+</RelativeLayout>

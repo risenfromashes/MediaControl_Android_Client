@@ -82,9 +82,16 @@ class MediaRemoteService : Service() {
             Intent(getMediaRemoteAction(MediaRemoteCommand.VOLUMEDOWN)),
             0
         )
+    private val mediaStopServicePendingIntent
+        get() = PendingIntent.getBroadcast(
+            this,
+            0,
+            Intent(getMediaRemoteAction(MediaRemoteCommand.STOPSERVICE)),
+            0
+        )
 
     private enum class MediaRemoteCommand {
-        TOGGLE, PREV, NEXT, VOLUMEUP, VOLUMEDOWN
+        TOGGLE, PREV, NEXT, VOLUMEUP, VOLUMEDOWN, STOPSERVICE
     }
 
     private fun getMediaRemoteAction(command: MediaRemoteCommand): String = when (command) {
@@ -93,6 +100,7 @@ class MediaRemoteService : Service() {
         MediaRemoteCommand.NEXT -> getString(R.string.media_remote_next)
         MediaRemoteCommand.VOLUMEUP -> getString(R.string.media_remote_volume_up)
         MediaRemoteCommand.VOLUMEDOWN -> getString(R.string.media_remote_volume_down)
+        MediaRemoteCommand.STOPSERVICE -> getString(R.string.media_remote_stop_service)
     }
 
     private fun getMediaRemoteCommand(action: String?): MediaRemoteCommand = when (action) {
@@ -101,6 +109,7 @@ class MediaRemoteService : Service() {
         getString(R.string.media_remote_next) -> MediaRemoteCommand.NEXT
         getString(R.string.media_remote_volume_up) -> MediaRemoteCommand.VOLUMEUP
         getString(R.string.media_remote_volume_down) -> MediaRemoteCommand.VOLUMEDOWN
+        getString(R.string.media_remote_stop_service) -> MediaRemoteCommand.STOPSERVICE
         else -> throw Exception("Unknown Action")
     }
 
@@ -113,6 +122,7 @@ class MediaRemoteService : Service() {
         intentFilter.addAction(getString(R.string.media_remote_prev))
         intentFilter.addAction(getString(R.string.media_remote_volume_up))
         intentFilter.addAction(getString(R.string.media_remote_volume_down))
+        intentFilter.addAction(getString(R.string.media_remote_stop_service))
         registerReceiver(playbackControlReceiver, intentFilter)
         Thread(Runnable {
             while (shouldRun) {
@@ -170,17 +180,14 @@ class MediaRemoteService : Service() {
     private var failureCount: Int = 0;
     private var isPlaying: Boolean = false
     private fun updateStatus(response: JSONObject) {
-
         val track = MediaRemoteTrack(
             response.getString("title"),
             response.getString("artist"),
             response.getString("album")
         )
         val _isPlaying = response.getBoolean("playing");
-        if (isPlaying != _isPlaying) {
-            isPlaying = _isPlaying
-            togglePlayPause(isPlaying)
-        }
+        val playingChanged = isPlaying != _isPlaying
+        isPlaying = _isPlaying
         if (!this::currentTrack.isInitialized || (currentTrack != track)) {
             notificationLayoutSmall.apply {
                 setTextViewText(R.id.titleLabel, track.title)
@@ -190,10 +197,11 @@ class MediaRemoteService : Service() {
                 setTextViewText(R.id.titleLabel, track.title)
                 setTextViewText(R.id.artistLabel, track.artist)
             }
-            isPlaying = _isPlaying
             currentTrack = track
+            togglePlayPause(isPlaying)
             updateThumbnail()
-        } else if (failureCount > 5) mNM!!.notify(NOTIFICATION_ID, notification.build())
+        } else if (playingChanged)
+            togglePlayPause(isPlaying)
         failureCount = 0;
     }
 
@@ -202,8 +210,7 @@ class MediaRemoteService : Service() {
             val jsonObjectRequest = JsonObjectRequest(Request.Method.GET, host + "status", null,
                 Response.Listener { response -> updateStatus(response) },
                 Response.ErrorListener { _ ->
-                    if (++failureCount > 5)
-                        mNM!!.cancel(NOTIFICATION_ID)
+                    failureCount++
                     Log.println(Log.ERROR, "Response", "Error Updating status")
                 }
             )
@@ -280,6 +287,10 @@ class MediaRemoteService : Service() {
             MediaRemoteCommand.NEXT -> "next"
             MediaRemoteCommand.VOLUMEUP -> "volume_up"
             MediaRemoteCommand.VOLUMEDOWN -> "volume_down"
+            MediaRemoteCommand.STOPSERVICE -> {
+                this.stopSelf()
+                return
+            }
         }
         val request = JsonObjectRequest(Request.Method.POST, host + req, null,
             Response.Listener { res -> updateNotification(res) },
@@ -319,6 +330,7 @@ class MediaRemoteService : Service() {
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setAutoCancel(false)
             .setOnlyAlertOnce(true)
+            .setDeleteIntent(mediaStopServicePendingIntent)
         createNotificationChannel()
         mNM!!.notify(NOTIFICATION_ID, notification.build())
     }

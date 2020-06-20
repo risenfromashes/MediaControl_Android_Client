@@ -5,6 +5,7 @@
     <string name="media_remote_prev">com.example.mediacontrol.MEDIA_REMOTE_PREV</string>
     <string name="media_remote_volume_up">com.example.mediacontrol.MEDIA_REMOTE_VOLUME_UP</string>
     <string name="media_remote_volume_down">com.example.mediacontrol.MEDIA_REMOTE_VOLUME_DOWN</string>
+    <string name="media_remote_stop_service">com.example.mediacontrol.MEDIA_REMOTE_STOP_SERVICE</string>
     <string name="title_activity_main">MainActivity</string>
     <!--
     This string is used for square devices and overridden by hello_world in
